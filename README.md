@@ -10,8 +10,6 @@ there are some values indicated by <> , inside which you have supposed to fillup
 
 This gets all the data from given table of from the database and return it in json format (array of objects)
 
-.json
-@json
 e.g.
 {
   "users" : [
