@@ -9,8 +9,9 @@ you have to enter your own credentials for the postgresql database...
 there are some values indicated by <> , inside which you have supposed to fillup the particular data...
 
 This gets all the data from given table of from the database and return it in json format (array of objects)
-
 e.g.
+
+'''
 {
   "users" : [
   {
@@ -23,5 +24,6 @@ e.g.
   }
   ]
 }
+'''
 
 This is still under developement ...
