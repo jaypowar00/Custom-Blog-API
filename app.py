@@ -24,11 +24,11 @@ app.config['SECRET_KEY']='YourVeryOwnVeryLongTopSecretKey'
 # change this to 'dev' if u wish to test the code with your local database and running the app on local machine other wise make it 'prod'...
 ENV = 'prod'
 if ENV == 'dev':
-    '''for local databse connection(if testing and running on local machine instead of server)'''
+    # for local databse connection(if testing and running on local machine instead of server)
     app.debug = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://<username>:<password>@localhost/<database>'
 else:
-    '''for online databse connection'''
+    # for online databse connection
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://<username>:<password>@localhost/<database>'
     app.debug = False
 
@@ -108,6 +108,7 @@ def get_searched_post(orderby='created' ,order='desc',author=None,tag=None,searc
         return 500,{'Server Error':'Invalid Search String'}
     except psycopg2.errors.AmbiguousFunction:
         return 500,{'Server Error':'Invalid Search String'}
+
 def get_blog_posts(orderby='created' ,order='desc',author=None,tag=None):
     '''actual implementation of getting-fetching all blogs/posts from posts table'''
     try:
@@ -423,7 +424,6 @@ def token_optional(func):
             return func(msg='token is Invalid!',token=False,admin=False,*args,**kwargs)
         return func(msg=author.first().name if current_user else '',token=True,admin=author.first().admin,*args,**kwargs)
     return decorated
-
 
 @app.route('''/''')
 @app.route('''/blog''')
@@ -1088,7 +1088,7 @@ def blog_admin_page(msg,token,admin):
     db.create_all()
     if '_id' in session or token:
         return '<form style="text-align: center;" action="/blog/logout" method="POST" style="line-height: 1.5;"><p style="font-size:calc(200px - 10vw); margin-top:35vh;">Logout:</p><input style="font-size:calc(200px - 10vw);" type="submit" value="logout"></form>'
-    return '<form style="text-align: center;" action="/blog/login" method="POST" style="line-height: 1.5;"><input style="font-size:calc(150px - 8vw);margin-top:35vh;" type="text" name="username" placeholder="Enter Name" required /><br><br><input type="password" name="passwd" placeholder="Enter Password" style="font-size:calc(150px - 8vw)" required><br><br><input style="font-size:calc(150px - 8vw)" type="submit" value="login"></form>'
+    return '<form style="text-align: center;" action="/blog/login" method="POST" style="line-height: 1.5;"><input style="font-size:calc(150px - 8vw);margin-top:35vh;" type="text" name="username" placeholder="Enter Name" required /><br><br><input type="password" name="password" placeholder="Enter Password" style="font-size:calc(150px - 8vw)" required><br><br><input style="font-size:calc(150px - 8vw)" type="submit" value="login"></form>'
 
 @app.route('''/blog/author''', methods=['POST','GET'])
 def admin_info():
