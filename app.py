@@ -22,7 +22,6 @@ app.permanent_session_lifetime = timedelta(days=3)
 
 app.config['SECRET_KEY']='YourVeryOwnVeryLongTopSecretKey'
 
-
 # change this to 'dev' if u wish to test the code with your local database and running the app on local machine other wise make it 'prod'...
 ENV = 'prod'
 if ENV == 'dev':
@@ -35,9 +34,6 @@ else:
     app.debug = False
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-login_manager = LoginManager()
-login_manager.init_app(app)
-@login_manager.user_loader
 
 class Posts(db.Model):
     '''This is a class for "posts" table'''
@@ -52,7 +48,7 @@ class Posts(db.Model):
     created = db.Column(db.DateTime(timezone=True),server_default=func.now())
 
 class Author(db.Model):
-    '''This is a class for "authors" table'''
+    '''This is a class for Auther information'''
     __tablename__ = 'authors'
     auth_id = db.Column(db.Integer,primary_key=True)
     public_id = db.Column(db.Integer,unique=True)
@@ -447,7 +443,7 @@ def blog_page(msg,token,admin):
     try:
             header = request.headers['<your_custom_auth_header_name>']
     finally:
-        if token or current_user.is_authenticated or header == '<the fixed authentication header value that you want for your api>' :
+        if token or '_id' in session or header == '<the fixed authentication header value that you want for your api>' :
             admin='(admin-login found)'
         return f"<div style='text-align:center;font-size:calc(100px - 6vw);'><h1>this is blog page</h1><br>{admin}<br><h3><br><br>see posts: <a href='/blog/posts'>/blog/posts</a><br>create a post: <a href='/blog/create'>/blog/create</a><br>admin login: <a href='/blog/admin'>/blog/admin</a></h3><div>"
 
@@ -749,7 +745,7 @@ def upload_post(msg,token,admin):
         header = request.headers['<your_custom_auth_header_name>']
     finally:
         print(request.data)
-        if token or current_user.is_authenticated or header == '<the fixed authentication header value that you want for your api>' :
+        if token or '_id' in session or header == '<the fixed authentication header value that you want for your api>' :
             if request.form and 'title' in request.form and 'content' in request.form and 'author'  in request.form and 'thumbnail' in request.form and 'tags' in request.form :
                 print('\n\nformdata found!\n\n')
                 title = request.form['title']
@@ -854,7 +850,7 @@ def update_post(msg,token,admin):
             header = request.headers['<your_custom_auth_header_name>']
         finally:
             req=request.get_json()
-            if token or current_user.is_authenticated or header == '<the fixed authentication header value that you want for your api>' :
+            if token or '_id' in session or header == '<the fixed authentication header value that you want for your api>' :
                 rtitle=''
                 rcontent=''
                 rauthor=msg if token and not admin else ''
@@ -964,7 +960,8 @@ def update_post(msg,token,admin):
         return make_response({'success':False,'response':'missing value of id'})
 
 @app.route('''/blog/create''', methods=["GET"])
-def upload_post_page():
+@token_optional
+def upload_post_page(msg,token,admin):
     '''
     for creating new article from origin(direct) api site!
     (also has option to delete all current articles)
@@ -975,7 +972,7 @@ def upload_post_page():
     try:
         header = request.headers['<your_custom_auth_header_name>']
     finally:
-        if token or current_user.is_authenticated or header == '<the fixed authentication header value that you want for your api>' :
+        if token or '_id' in session or header == '<the fixed authentication header value that you want for your api>' :
             return '''
             <br><br><br><br><br><hr>
             <form style="text-align: center;line-height: 1.5;" action="/blog/create" method="POST">
@@ -996,7 +993,8 @@ def upload_post_page():
             return make_response({'success':False,'response':'unauthorized access'})
 
 @app.route('''/blog/post/delete''', methods=["GET","POST"])
-def delete_all_posts():
+@token_optional
+def delete_all_posts(msg,token,admin):
     '''
     Used to delete all Articles or just to delete one article of which id is provided through query param
     '''
@@ -1014,7 +1012,7 @@ def delete_all_posts():
             try:
                 header = request.headers['<your_custom_auth_header_name>']
             finally:
-                if token or current_user.is_authenticated or header == '<the fixed authentication header value that you want for your api>' :
+                if token or '_id' in session or header == '<the fixed authentication header value that you want for your api>' :
                     if id:
                         return delete_by(id)
                     else:
@@ -1027,7 +1025,7 @@ def delete_all_posts():
         try:
             header = request.headers['<your_custom_auth_header_name>']
         finally:
-            if current_user.is_authenticated or header == '<the fixed authentication header value that you want for your api>' :
+            if token or '_id' in session or header == '<the fixed authentication header value that you want for your api>' :
                 return delete_all()
             else:
                 return make_response({'response':'unauthorized access'})
@@ -1088,7 +1086,7 @@ def blog_admin_page(msg,token,admin):
     (Though Direct Usage of routes is not recommeneded still could be better if want to confirm by checking out something)
     '''
     db.create_all()
-    if current_user.is_authenticated or token:
+    if '_id' in session or token:
         return '<form style="text-align: center;" action="/blog/logout" method="POST" style="line-height: 1.5;"><p style="font-size:calc(200px - 10vw); margin-top:35vh;">Logout:</p><input style="font-size:calc(200px - 10vw);" type="submit" value="logout"></form>'
     return '<form style="text-align: center;" action="/blog/login" method="POST" style="line-height: 1.5;"><input style="font-size:calc(150px - 8vw);margin-top:35vh;" type="text" name="username" placeholder="Enter Name" required /><br><br><input type="password" name="passwd" placeholder="Enter Password" style="font-size:calc(150px - 8vw)" required><br><br><input style="font-size:calc(150px - 8vw)" type="submit" value="login"></form>'
 
@@ -1142,9 +1140,8 @@ def blog_logout():
     mostly recieved token will be stored in cookies and will be used (if present) for thereafter auth-required requests until it expires or user clicks on log out ater which you would have to clear that cookie(thats one way doing it though)
     '''
     db.create_all()
-    if current_user.is_authenticated:
+    if '_id' in session:
         session.pop("_id",None)
-        logout_user()
         return make_response({'response':'logged out'})
     return make_response({'response':'not logged in'})
     
