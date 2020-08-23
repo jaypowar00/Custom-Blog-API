@@ -16,7 +16,6 @@ import jwt
 
 cookie_duration = timedelta(days=3)
 app = Flask(__name__)
-db = SQLAlchemy(app)
 CORS(app,expose_headers=['Access-Control-Allow-Origin'],supports_credentials=True)  #Required if working with cross-domain/cross-site requests! [Important]
 app.permanent_session_lifetime = timedelta(days=3)
 
@@ -34,6 +33,7 @@ else:
     app.debug = False
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
 class Posts(db.Model):
     '''This is a class for "posts" table'''
