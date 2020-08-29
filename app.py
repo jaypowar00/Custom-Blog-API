@@ -2,7 +2,7 @@
 This is a custome API for Blogsites (still in development)
 (Don't rush and try to run it! observe the code and fillin your credentials for SQL database; I've tested this with only Postgresql)
 '''
-from flask import Flask, request, redirect, url_for, make_response, session ,jsonify
+from flask import Flask, request, redirect, url_for, make_response, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 import psycopg2
@@ -29,7 +29,7 @@ if ENV == 'dev':
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://<username>:<password>@localhost/<database>'
 else:
     # for online databse connection
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://<username>:<password>@localhost/<database>'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://<username>:<password>@<host>/<database>'
     app.debug = False
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -46,6 +46,13 @@ class Posts(db.Model):
     description = db.Column(db.Text())
     thumbnail = db.Column(db.Text())
     created = db.Column(db.DateTime(timezone=True),server_default=func.now())
+    
+    def __init__(self, title, content, author, description=None,tags=None):
+        self.title = title
+        self.content = content
+        self.author = author
+        self.desciption = description
+        self.tags = tags
 
 class Author(db.Model):
     '''This is a class for Auther information'''
@@ -69,9 +76,6 @@ class Author(db.Model):
         self.public_id = public_id
         self.social = social
         self.admin = admin
-
-    def get_id(self):
-        return self.auth_id
 
 def get_searched_post(orderby='created' ,order='desc',author=None,tag=None,searchString=False):
     '''actual implementation of getting-fetching all blogs/posts from posts table filtered by search items with other filters'''
@@ -353,26 +357,14 @@ def delete_by(id):
         print('no post to delete(for delete post)')
         return make_response({'response':'No posts to delete'})
 
-def check_pass_hash(username,password):
-    try:
-        if ENV == 'dev':
-            #local DB config.
-            conn = psycopg2.connect(database = "<database_name>", user = "<user>" , password = "<password>", host ="localhost" ,port = "5432")
-        else:
-            #non-local DB config.(online)
-            conn = psycopg2.connect(database = "<database_name>", user = "<user>" , password = "<password>", host ="<host/server>" ,port = "5432")
-        cur = conn.cursor()
-        cur.execute("SELECT json_agg(authors) FROM authors")
-        result = cur.fetchall()[0][0]
-        conn.commit()
-        cur.close()
-        conn.close()
-        for x in result:
-            if x['name']==username and check_password_hash(x['password'],password):
-                return x['auth_id']
-        return False
-    except psycopg2.OperationalError:
-        return 500,{'Server Error':'Database Error'}
+class BlackListedTokenError(Exception):
+    '''
+    raise this Custom Error for indicating the Token is in the BlackList
+    '''
+    pass
+
+#for storing logged out tokens till they get generated again by login randomly(rarecase)...
+blackListedTokens = set()
 
 #use this wrapper for the routes you want the jwt authentication(valid) as must!
 def token_required(func):
@@ -412,6 +404,8 @@ def token_optional(func):
         if not token:
             return func(msg='token is missing',token=False,admin=False,*args,**kwargs)
         try:
+            if token in blackListedTokens:
+                raise BlackListedTokenError('Reused Logged out Token')
             data = jwt.decode(token,app.config['SECRET_KEY'])
             author= Author.query.filter_by(public_id=data['public_id'])
             if author:
@@ -421,6 +415,8 @@ def token_optional(func):
         except jwt.InvalidSignatureError:
             return func(msg='token is Invalid!',token=False,admin=False,*args,**kwargs)
         except jwt.DecodeError:
+            return func(msg='token is Invalid!',token=False,admin=False,*args,**kwargs)
+        except BlackListedTokenError:
             return func(msg='token is Invalid!',token=False,admin=False,*args,**kwargs)
         return func(msg=author.first().name if current_user else '',token=True,admin=author.first().admin,*args,**kwargs)
     return decorated
@@ -1061,6 +1057,8 @@ def blog_login(msg,token,admin):
         return jsonify({'response':'login failed(user not found!)','success':False})
     if check_password_hash(author.password,password):
         token= jwt.encode({'public_id':author.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)},app.config['SECRET_KEY'])
+        if token in blackListedTokens:
+            blackListedTokens.discard(token)
         session.permanent = True
         session['_id'] = author.auth_id
         return jsonify({'response':'Logged in','token':token.decode('UTF-8'),'success':True,'already_logged_in':False,'author':username})
@@ -1133,15 +1131,19 @@ def admin_info_post():
     return '<h1>post data</h1>'
 
 @app.route('''/blog/logout''', methods=["POST"])
-def blog_logout():
+@token_optional
+def blog_logout(msg,token,admin):
     '''
     This will be useful only in direct usage of the api site!
     If using it on cross-domain/cross-site then you just have to delete/clear the local where token is stored..
     mostly recieved token will be stored in cookies and will be used (if present) for thereafter auth-required requests until it expires or user clicks on log out ater which you would have to clear that cookie(thats one way doing it though)
     '''
     db.create_all()
-    if '_id' in session:
+    if '_id' in session or token:
         session.pop("_id",None)
+        if token:
+            logedout_token=request.args['token']
+            blackListedTokens.add(logedout_token)
         return make_response({'response':'logged out'})
     return make_response({'response':'not logged in'})
     
