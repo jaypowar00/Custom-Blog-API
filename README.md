@@ -1,5 +1,10 @@
 # Custome Blog API
 # API using Python - Flask - Postgresql
+## Demos:
+Demo Website which uses this backend: [CSGeeks Blog](https://jaypowar00.github.io/csgeeksblog)  
+Also checkout the [Android App](https://github.com/mrwhoknows55/csgeeks-blog-app.git) made by my friend [Avadhoot](https://github.com/mrwhoknows55)  
+and the FrontEnd [CSGeeksBlog](https://github.com/jaypowar00/csgeeksblog.git) made by me([JayPowar](https://github.com/jaypowar00))
+
 (understand the code before running it blindly)
 
 The app.py is like a skeleton!
